@@ -31,6 +31,8 @@ type operand =
   | Expr of string * expr list
   | Label of string
   | MacroDef of string list * instruction list
+  | If of expr * instruction list * instruction list
+
 and instruction = {
   location: location;
   operand: operand;
