@@ -5,6 +5,14 @@ hoge:   ld a,(ix+(fuga*3))
         nop
         ret
 mmm: macro v
-    ld a,v
+    if v > 0
+        ld a,v
+        nop
+        mmm v-1
+    endif
 endm
-        mmm 10
+mm1: macro
+    ld a,111
+endm
+        mmm 3
+        mm1

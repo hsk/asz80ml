@@ -75,6 +75,7 @@ let show_operand = function
   | Label l -> l ^ ":"
   | MacroDef (params, _body) ->
       Printf.sprintf "macro %s" (String.concat ", " params)
+  | If (cond, _, _) -> Printf.sprintf "if %s" (show_expr cond)
 
 let show_instruction instr =
   let op_str = show_operand instr.operand in
@@ -145,6 +146,7 @@ let eval_operand env = function
   | Expr (mnem, args) -> Expr (mnem, List.map (eval_expr env) args)
   | Label l -> Label l
   | MacroDef (p, b) -> MacroDef (p, b)
+  | If (c, t, e) -> If (eval_expr env c, t, e)
 
 let eval_instruction env instr =
   { instr with operand = eval_operand env instr.operand }
@@ -183,6 +185,10 @@ let rec subst_operand subst_env = function
   | MacroDef (params, body) ->
       let new_subst_env = List.filter (fun (p, _) -> not (List.mem p params)) subst_env in
       MacroDef (params, List.map (subst_instruction new_subst_env) body)
+  | If (cond, then_block, else_block) ->
+      If (subst_expr subst_env cond,
+          List.map (subst_instruction subst_env) then_block,
+          List.map (subst_instruction subst_env) else_block)
 and subst_instruction subst_env instr =
   { instr with operand = subst_operand subst_env instr.operand }
 
@@ -195,6 +201,12 @@ let rec eval_program_rec (env: env) (macros: (string * macro) list) (prog: progr
   | {operand=Label n}::{operand=Expr("equ", [e])}::rest ->
       let new_env = (n, eval_expr env e) :: env in
       eval_program_rec new_env macros rest
+  | {operand=If (cond, then_block, else_block)} :: rest ->
+      let branch = match eval_expr env cond with
+        | Int 0 -> else_block
+        | _ -> then_block
+      in
+      eval_program_rec env macros (branch @ rest)
   | ({location; operand = Expr(name, args)} as instr) :: rest ->
       (match List.assoc_opt name macros with
       | Some macro ->

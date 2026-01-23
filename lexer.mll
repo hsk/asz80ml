@@ -7,9 +7,9 @@ let alpha = ['a'-'z' 'A'-'Z' '_']
 let alnum = ['a'-'z' 'A'-'Z' '0'-'9' '_']
 rule token = parse
   | [' ' '\t']+ { token lexbuf }
-  | '\n'        { Parser.line := !Parser.line + 1; EOL }
-  | '\r' '\n'   { Parser.line := !Parser.line + 1; EOL }
-  | '\r'        { Parser.line := !Parser.line + 1; EOL }
+  | '\n'        { incr line; EOL(!line) }
+  | '\r' '\n'   { incr line; EOL(!line) }
+  | '\r'        { incr line; EOL(!line) }
   | "//" [^ '\n']*      { token lexbuf }
   | digit+ as n         { INT (int_of_string n) }
   | "0x" hex+ as n      { INT (int_of_string n) }
@@ -18,6 +18,10 @@ rule token = parse
       match String.lowercase_ascii x with
       | "macro" -> MACRO
       | "endm" -> ENDM
+      | "if" -> IF
+      | "elif" -> ELIF
+      | "else" -> ELSE
+      | "endif" -> ENDIF
       | _ -> IDENT x
     }
   | '('  { LPAREN }
