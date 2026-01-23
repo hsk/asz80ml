@@ -44,15 +44,17 @@ main:
 
 program:
   | program_item
-      { [$1] }
+      { $1 }
   | program program_item
-      { $1 @ [$2] }
+      { $1 @ $2 }
 
 program_item:
   | IDENT COLON NEWLINE
-      { { location = {file = !file; line = !line}; operand = Ast.Label $1 } }
+      { [{ location = {file = !file; line = !line}; operand = Ast.Label $1 }] }
   | instruction
-      { $1 }
+      { [$1] }
+  | IDENT COLON instruction
+      { [{ location = {file = !file; line = !line}; operand = Ast.Label $1 }; $3] }
 
 instruction:
   | IDENT expr_list NEWLINE

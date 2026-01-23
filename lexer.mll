@@ -15,6 +15,11 @@ rule token = parse
   (* Integer literals *)
   | ['0'-'9']+ as num
       { INT (int_of_string num) }
+  | "0x" ['0'-'9' 'a'-'f' 'A'-'F']+ as num
+      { INT (int_of_string num) }
+  | "$" ['0'-'9' 'a'-'f' 'A'-'F']+ as num
+      (* OCaml's int_of_string handles 0x but not $, so we convert $FF -> 0xFF *)
+      { INT (int_of_string ("0x" ^ (String.sub num 1 (String.length num - 1)))) }
   
   (* Identifiers *)
   | ['a'-'z' 'A'-'Z' '_']['a'-'z' 'A'-'Z' '0'-'9' '_']* as id

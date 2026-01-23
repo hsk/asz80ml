@@ -4,7 +4,7 @@ all:
 	rm -rf parser.mli
 	ocamllex lexer.mll
 	ocamlc ast.cmo parser.ml lexer.ml main.ml -o test
-	rm *.cm*
+	rm *.cm* parser.ml lexer.ml
 	./test test.txt
 
 
