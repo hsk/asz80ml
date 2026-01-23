@@ -1,4 +1,6 @@
-fuga:
-hoge:ld a,(ix+(2*3))
-    ld (iy+10*2)
-    nop
+fuga:   equ 10
+hoge:   ld a,(ix+(fuga*3))
+        ld (iy+fuga*2),a
+        ld (10),a
+        nop
+        ret
