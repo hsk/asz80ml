@@ -1,0 +1,4 @@
+fuga:
+    ld a,(ix+(2*3))
+    ld (iy+10*2)
+    nop
