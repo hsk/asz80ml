@@ -4,3 +4,7 @@ hoge:   ld a,(ix+(fuga*3))
         ld (10),a
         nop
         ret
+mmm: macro v
+    ld a,v
+endm
+        mmm 10

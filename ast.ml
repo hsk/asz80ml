@@ -30,7 +30,8 @@ type location = {
 type operand =
   | Expr of string * expr list
   | Label of string
-type instruction = {
+  | MacroDef of string list * instruction list
+and instruction = {
   location: location;
   operand: operand;
 }
@@ -70,6 +71,8 @@ let show_operand = function
       if args_str = "" then mnem else
       Printf.sprintf "%s %s" mnem args_str
   | Label l -> l ^ ":"
+  | MacroDef (params, _body) ->
+      Printf.sprintf "macro %s" (String.concat ", " params)
 
 let show_instruction instr =
   let op_str = show_operand instr.operand in
@@ -77,6 +80,11 @@ let show_instruction instr =
 
 let show_program prog =
   String.concat "\n" (List.map show_instruction prog)
+
+type macro = {
+  params: string list;
+  body: instruction list;
+}
 
 type env = (string * expr) list
 
@@ -134,13 +142,71 @@ let eval_expr env = function
 let eval_operand env = function
   | Expr (mnem, args) -> Expr (mnem, List.map (eval_expr env) args)
   | Label l -> Label l
+  | MacroDef (p, b) -> MacroDef (p, b)
 
 let eval_instruction env instr =
   { instr with operand = eval_operand env instr.operand }
 
-let rec eval_program env = function
-  | [] -> []
-  | {operand=Label(n)}::{operand=Expr("equ", [e])}::prog ->
-    eval_program ((n,eval_expr env e)::env) prog
-  | instr::prog -> eval_instruction env instr::eval_program env prog
+(* --- Macro Expansion --- *)
 
+let rec subst_expr (subst_env: (string * expr) list) expr =
+  match expr with
+  | Var s -> List.assoc_opt s subst_env |> Option.value ~default:expr
+  | Int n -> Int n
+  | Ternary (a,b,c) -> Ternary (subst_expr subst_env a, subst_expr subst_env b, subst_expr subst_env c)
+  | Or (a, b) -> Or (subst_expr subst_env a, subst_expr subst_env b)
+  | Xor (a, b) -> Xor (subst_expr subst_env a, subst_expr subst_env b)
+  | And (a, b) -> And (subst_expr subst_env a, subst_expr subst_env b)
+  | Eq (a, b) -> Eq (subst_expr subst_env a, subst_expr subst_env b)
+  | Ne (a, b) -> Ne (subst_expr subst_env a, subst_expr subst_env b)
+  | Le (a, b) -> Le (subst_expr subst_env a, subst_expr subst_env b)
+  | Ge (a, b) -> Ge (subst_expr subst_env a, subst_expr subst_env b)
+  | Lt (a, b) -> Lt (subst_expr subst_env a, subst_expr subst_env b)
+  | Gt (a, b) -> Gt (subst_expr subst_env a, subst_expr subst_env b)
+  | LShift (a, b) -> LShift (subst_expr subst_env a, subst_expr subst_env b)
+  | RShift (a, b) -> RShift (subst_expr subst_env a, subst_expr subst_env b)
+  | Add (a, b) -> Add (subst_expr subst_env a, subst_expr subst_env b)
+  | Sub (a, b) -> Sub (subst_expr subst_env a, subst_expr subst_env b)
+  | Mul (a, b) -> Mul (subst_expr subst_env a, subst_expr subst_env b)
+  | Div (a, b) -> Div (subst_expr subst_env a, subst_expr subst_env b)
+  | Mod (a, b) -> Mod (subst_expr subst_env a, subst_expr subst_env b)
+  | Not a -> Not (subst_expr subst_env a)
+  | UAdd a -> UAdd (subst_expr subst_env a)
+  | USub a -> USub (subst_expr subst_env a)
+  | Paren a -> Paren (subst_expr subst_env a)
+
+let rec subst_operand subst_env = function
+  | Expr (mnem, args) -> Expr (mnem, List.map (subst_expr subst_env) args)
+  | Label l -> Label l
+  | MacroDef (params, body) ->
+      let new_subst_env = List.filter (fun (p, _) -> not (List.mem p params)) subst_env in
+      MacroDef (params, List.map (subst_instruction new_subst_env) body)
+and subst_instruction subst_env instr =
+  { instr with operand = subst_operand subst_env instr.operand }
+
+let rec eval_program_rec (env: env) (macros: (string * macro) list) (prog: program) : program =
+  match prog with
+  | [] -> []
+  | {operand=Label name}::{operand = MacroDef (params, body)} :: rest ->
+      let new_macros = (name, {params; body}) :: macros in
+      eval_program_rec env new_macros rest
+  | {operand=Label n}::{operand=Expr("equ", [e])}::rest ->
+      let new_env = (n, eval_expr env e) :: env in
+      eval_program_rec new_env macros rest
+  | ({location; operand = Expr(name, args)} as instr) :: rest ->
+      (match List.assoc_opt name macros with
+      | Some macro ->
+          if List.length macro.params <> List.length args then
+            failwith (Printf.sprintf "Macro '%s' at %s:%d expects %d arguments, but got %d"
+              name location.file location.line (List.length macro.params) (List.length args));
+          let subst_env = List.combine macro.params args in
+          let expanded_body = List.map (subst_instruction subst_env) macro.body in
+          let processed_body = eval_program_rec env macros expanded_body in
+          processed_body @ (eval_program_rec env macros rest)
+      | None ->
+          eval_instruction env instr :: eval_program_rec env macros rest)
+  | instr :: rest ->
+      eval_instruction env instr :: eval_program_rec env macros rest
+
+let eval_program env prog =
+  eval_program_rec env [] prog

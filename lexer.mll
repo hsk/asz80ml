@@ -14,7 +14,12 @@ rule token = parse
   | digit+ as n         { INT (int_of_string n) }
   | "0x" hex+ as n      { INT (int_of_string n) }
   | "$" (hex+ as n)     { INT (int_of_string ("0x" ^ n)) }
-  | alpha alnum* as x   { IDENT x }
+  | alpha alnum* as x   {
+      match String.lowercase_ascii x with
+      | "macro" -> MACRO
+      | "endm" -> ENDM
+      | _ -> IDENT x
+    }
   | '('  { LPAREN }
   | ')'  { RPAREN }
   | '?'  { QUESTION }

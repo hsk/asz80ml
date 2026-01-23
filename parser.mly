@@ -6,7 +6,7 @@
 %}
 %token <int> INT
 %token <string> IDENT
-%token LPAREN "(" RPAREN ")" QUESTION "?" COLON ":" OR "|" CARET "^" AND "&"
+%token LPAREN "(" RPAREN ")" QUESTION "?" COLON ":" OR "|" CARET "^" AND "&" MACRO ENDM
 %token EQEQ "==" EQ "=" NE "!=" LE "<=" GE ">=" LT "<" GT ">"
 %token LSHIFT "<<" RSHIFT ">>" ADD "+" SUB "-" MUL "*" DIV "/" MOD "%"
 %token TILDE "~" COMMA "," EOL EOF
@@ -27,6 +27,8 @@ main:
 program_item:
   | IDENT ":" EOL           { l(Label $1) }
   | IDENT ":"               { l(Label $1) }
+  | MACRO macro_params EOL macro_body
+                            { l(MacroDef($2, $4)) }
   | instruction             { $1 }
 instruction:
   | IDENT exprs EOL         { l(Expr($1, $2)) }
@@ -34,6 +36,12 @@ instruction:
 exprs:
   | expr                    { [$1] }
   | expr "," exprs          { $1 :: $3 }
+macro_params:
+  | (* empty *)             { [] }
+  | separated_nonempty_list(COMMA, IDENT) { $1 }
+macro_body:
+  | ENDM EOL                { [] }
+  | program_item macro_body { $1 :: $2 }
 expr:
   | expr "?" expr ":" expr  { Ternary($1, $3, $5) }
   | expr "|" expr           { Or($1, $3) }
