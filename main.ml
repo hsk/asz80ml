@@ -25,11 +25,12 @@ let parse_file filename =
 
 let () =
   if Array.length Sys.argv < 2 then (
-    Printf.eprintf "Usage: %s <filename>\n" Sys.argv.(0);
+    Printf.eprintf "Usage: %s <filename> [output_binary]\n" Sys.argv.(0);
     exit 1
   );
   
   let filename = Sys.argv.(1) in
+  let out_filename = if Array.length Sys.argv > 2 then Some Sys.argv.(2) else None in
   
   try
     let program = parse_file filename in
@@ -41,7 +42,7 @@ let () =
     Printf.printf "Evaluated program:\n%s\n\n" (Ast.show_program evaluated);
 
     Printf.printf "Assembly Output:\n";
-    Assembler.assemble evaluated
+    Assembler.assemble evaluated out_filename
   with
   | Sys_error msg ->
       Printf.eprintf "Error: %s\n" msg;

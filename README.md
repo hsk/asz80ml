@@ -10,3 +10,4 @@
 - [x] defb defw db dw defm dm
 - [x] incbin
 - [x] z80 nimonic (all)
+- [x] output binary file

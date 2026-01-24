@@ -10,7 +10,7 @@ rule token = parse
   | '\n'        { loc := {!loc with line= !loc.line + 1}; EOL(!loc.line) }
   | '\r' '\n'   { loc := {!loc with line= !loc.line + 1}; EOL(!loc.line) }
   | '\r'        { loc := {!loc with line= !loc.line + 1}; EOL(!loc.line) }
-  | "//" [^ '\n']*      { token lexbuf }
+  | ';' [^ '\n']*      { token lexbuf }
   | digit+ as n         { INT (int_of_string n) }
   | "0x" hex+ as n      { INT (int_of_string n) }
   | "$" (hex+ as n)     { INT (int_of_string ("0x" ^ n)) }

@@ -333,6 +333,34 @@ let pass2 prog env =
   in
   loop 0 prog
 
-let assemble prog =
+(* Pass 3: Binary Output *)
+let pass3 prog env filename =
+  let oc = open_out_bin filename in
+  let rec loop addr = function
+    | [] -> ()
+    | instr :: rest ->
+        match instr.operand with
+        | Label _ -> loop addr rest
+        | Expr ("org", [addr_expr]) ->
+            let new_addr = eval_expr_int env addr_expr in
+            loop new_addr rest
+        | _ ->
+            let bytes = encode env addr instr in
+            List.iter (output_byte oc) bytes;
+            loop (addr + List.length bytes) rest
+  in
+  try
+    loop 0 prog;
+    close_out oc;
+    Printf.printf "Binary output written to %s\n" filename
+  with e ->
+    close_out_noerr oc;
+    Printf.eprintf "Error writing binary file: %s\n" (Printexc.to_string e);
+    raise e
+
+let assemble prog out_file =
   let env = pass1 prog in
-  pass2 prog env
+  pass2 prog env;
+  match out_file with
+  | Some f -> pass3 prog env f
+  | None -> ()

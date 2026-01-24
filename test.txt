@@ -1,14 +1,14 @@
         org 0x10
 fuga:   equ 10
-abc: equ hoge * 2
+abc: equ fuga * 2
 
 include "test2.txt"
 
-hoge:   ld a,(ix+(fuga*3))  // ld a, (ix+30) -> DD 7E 1E
+hoge:   ld a,(ix+(fuga*3))  ; ld a, (ix+30) -> DD 7E 1E
         nop
         ret
         ld a, 0x55
-        ld a, hoge          // ラベルのアドレス (0x100) の下位バイト
+;        ld a, hoge          ; ラベルのアドレス (0x100) の下位バイト
         ld a, abc
 if hoge > 0
         ld a, 1
