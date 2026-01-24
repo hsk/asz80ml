@@ -7,6 +7,6 @@
 - [x] z80 nimonic (minimum)
 - [x] org, label address
 - [x] include
-- [ ] incbin
 - [ ] defb defw db dw defm dm
+- [ ] incbin
 - [ ] z80 nimonic (all)

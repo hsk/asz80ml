@@ -1,31 +1,26 @@
 (* Parse a file and return the program *)
 let parse_file filename =
-  let saved_file = !Parser.file in
-  let saved_line = !Parser.line in
+  let saved_loc = !Parser.loc in
   let ic = open_in filename in
   let lexbuf = Lexing.from_channel ic in
   
   (* Reset and set line number and filename *)
-  Parser.line := 0;
-  Parser.file := filename;
-  
+  Parser.loc := {file = filename; line = 0};
+
   try
     let program = Parser.main Lexer.token lexbuf in
     close_in ic;
-    Parser.file := saved_file;
-    Parser.line := saved_line;
+    Parser.loc := saved_loc;
     program
   with
   | Parser.Error ->
       close_in ic;
-      Printf.eprintf "Parse error at line %d\n" !Parser.line;
-      Parser.file := saved_file;
-      Parser.line := saved_line;
+      Printf.eprintf "Parse error at line %d\n" !Parser.loc.line;
+      Parser.loc := saved_loc;
       raise (Failure "Parse error")
   | e ->
       close_in ic;
-      Parser.file := saved_file;
-      Parser.line := saved_line;
+      Parser.loc := saved_loc;
       raise e
 
 let () =
@@ -42,7 +37,6 @@ let () =
     Printf.printf "Parse successful!\n";
     Printf.printf "Original program:\n%s\n\n" (Ast.show_program program);
     
-    (* Evaluate with empty environment *)
     let evaluated = Macro.eval_program parse_file [] program in
     Printf.printf "Evaluated program:\n%s\n\n" (Ast.show_program evaluated);
 

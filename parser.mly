@@ -1,10 +1,9 @@
 %{
   open Ast
-  let line = ref 0
-  let file = ref ""
-  let l operand = { location = {file = !file; line = !line}; operand }
-  let l1 operand = { location = {file = !file; line = !line+1}; operand }
-  let l2 (operand,line) = { location = {file = !file; line}; operand }
+  let loc = ref {file = ""; line = 0}
+  let l operand = { location = !loc; operand }
+  let l1 operand = { location = {!loc with line = !loc.line+1}; operand }
+  let l2 (operand,line) = { location = {!loc with line}; operand }
 %}
 %token <int> INT EOL
 %token <string> IDENT STRING
