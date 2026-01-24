@@ -3,6 +3,7 @@
   let line = ref 0
   let file = ref ""
   let l operand = { location = {file = !file; line = !line}; operand }
+  let l1 operand = { location = {file = !file; line = !line+1}; operand }
   let l2 (operand,line) = { location = {file = !file; line}; operand }
 %}
 %token <int> INT EOL
@@ -28,8 +29,7 @@ main:
   | program_item* EOF       { List.flatten $1 }
 program_item:
   | EOL                     { [] }
-  | IDENT ":" EOL           { [l(Label $1)] }
-  | IDENT ":"               { [l(Label $1)] }
+  | IDENT ":"               { [l1(Label $1)] }
   | "macro" separated_list(",", IDENT) EOL program_item* "endm" EOL
                             { [l2(MacroDef($2, List.flatten $4),$3)] }
   | "if" expr EOL if_parts  { let (t, e) = $4 in [l2(If($2, t, e),$3)] }
