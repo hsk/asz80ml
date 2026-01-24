@@ -27,7 +27,7 @@ let rec eval_expr env = function
   | LShift (a, b) -> eval_bin env (fun x y -> LShift (x, y)) a b (fun x y -> x lsl y)
   | RShift (a, b) -> eval_bin env (fun x y -> RShift (x, y)) a b (fun x y -> x asr y)
   | Add (a, b) -> eval_bin env (fun x y -> Add (x, y)) a b (fun x y -> x + y)
-  | Sub (a, b) -> eval_bin env (fun x y -> Sub (x, y)) a b (fun x y -> x - y)
+  | Sub (a, b) -> eval_bin env (fun x y -> Add (x, eval_expr env (USub y))) a b (fun x y -> x - y)
   | Mul (a, b) -> eval_bin env (fun x y -> Mul (x, y)) a b (fun x y -> x * y)
   | Div (a, b) -> eval_bin env (fun x y -> Div (x, y)) a b (fun x y -> if y = 0 then 0 else x / y)
   | Mod (a, b) -> eval_bin env (fun x y -> Mod (x, y)) a b (fun x y -> if y = 0 then 0 else x mod y)
@@ -74,6 +74,7 @@ let rec subst_expr (subst_env: (string * expr) list) expr =
   match expr with
   | Var s -> List.assoc_opt s subst_env |> Option.value ~default:expr
   | Int n -> Int n
+  | String s -> String s
   | Ternary (a,b,c) -> Ternary (subst_expr subst_env a, subst_expr subst_env b, subst_expr subst_env c)
   | Or (a, b) -> Or (subst_expr subst_env a, subst_expr subst_env b)
   | Xor (a, b) -> Xor (subst_expr subst_env a, subst_expr subst_env b)

@@ -6,249 +6,265 @@ let eval_expr_int env expr =
   | Int n -> n
   | _ -> assert false
 
-let z80_encode env pc instr =
-  let val_of e = eval_expr_int env e in
-  let byte n = n land 0xFF in
-  let word n = [n land 0xFF; (n lsr 8) land 0xFF] in
-  let rel_disp dest = 
-    let offset = dest - (pc + 2) in
-    if offset < -128 || offset > 127 then
-      Printf.eprintf "Warning: Relative jump out of range at %04X\n" pc;
-    offset land 0xFF
+let expr env pc instr =
+  let v_ = ref 0 in
+  let abcdehl = function
+    | Var "b" -> v_ := 0; true
+    | Var "c" -> v_ := 1; true
+    | Var "d" -> v_ := 2; true
+    | Var "e" -> v_ := 3; true
+    | Var "h" -> v_ := 4; true
+    | Var "l" -> v_ := 5; true
+    | Var "a" -> v_ := 7; true
+    | _ -> false
   in
-
-  (* Helpers for operand decoding *)
-  let r8 expr = 
-    match expr with
-    | Var "b" -> Some 0 | Var "c" -> Some 1 | Var "d" -> Some 2 | Var "e" -> Some 3
-    | Var "h" -> Some 4 | Var "l" -> Some 5 | Paren (Var "hl") -> Some 6 | Var "a" -> Some 7
-    | _ -> None 
+  let v2_ = ref 0 in
+  let abcdehlref = function
+    | Var "b" -> v2_ := 0; true
+    | Var "c" -> v2_ := 1; true
+    | Var "d" -> v2_ := 2; true
+    | Var "e" -> v2_ := 3; true
+    | Var "h" -> v2_ := 4; true
+    | Var "l" -> v2_ := 5; true
+    | Paren(Var "hl") -> v2_ := 6; true
+    | Var "a" -> v2_ := 7; true
+    | _ -> false
   in
-  let ixiy expr =
-    match expr with
-    | Paren (Add (Var "ix", d)) | Paren (Add (d, Var "ix")) -> Some (0xDD, val_of d)
-    | Paren (Add (Var "iy", d)) | Paren (Add (d, Var "iy")) -> Some (0xFD, val_of d)
-    | Paren (Sub (Var "ix", d)) -> Some (0xDD, -val_of d)
-    | Paren (Sub (Var "iy", d)) -> Some (0xFD, -val_of d)
-    | Paren (Var "ix") -> Some (0xDD, 0)
-    | Paren (Var "iy") -> Some (0xFD, 0)
-    | _ -> None
+  let ixiy_ = ref 0 in
+  let ixiy = function
+    | Var "ix" -> ixiy_ := 0xdd; true
+    | Var "iy" -> ixiy_ := 0xfd; true
+    | _ -> false
   in
-  let r8_ext expr = (* Returns (prefix, opcode_bits, disp) *)
-    match r8 expr with
-    | Some c -> (None, c, None)
-    | None -> 
-        match ixiy expr with
-        | Some (pre, d) -> (Some pre, 6, Some d)
-        | None -> raise Not_found
+  let bc_de = function
+    | Var "bc" -> v_ := 0x00; true
+    | Var "de" -> v_ := 0x10; true
+    | _ -> false
   in
-  let r16_sp expr = match expr with Var "bc" -> Some 0 | Var "de" -> Some 1 | Var "hl" -> Some 2 | Var "sp" -> Some 3 | _ -> None in
-  let r16_af expr = match expr with Var "bc" -> Some 0 | Var "de" -> Some 1 | Var "hl" -> Some 2 | Var "af" -> Some 3 | _ -> None in
-  let cc expr = match expr with
-    | Var "nz" -> Some 0 | Var "z" -> Some 1 | Var "nc" -> Some 2 | Var "c" -> Some 3
-    | Var "po" -> Some 4 | Var "pe" -> Some 5 | Var "p" -> Some 6 | Var "m" -> Some 7
-    | _ -> None
+  let bc_de_sp = function
+    | Var "bc" -> v_ := 0x00; true
+    | Var "de" -> v_ := 0x10; true
+    | Var "sp" -> v_ := 0x30; true
+    | _ -> false
   in
-  
-  (* Common ALU encoding *)
-  let alu_op base_op imm_op args =
-    match args with
-    | [Var "a"; src] | [src] ->
-        begin try
-          let (pre, code, disp) = r8_ext src in
-          let op = base_op + code in
-          match pre, disp with
-          | Some p, Some d -> [p; op; byte d]
-          | _, _ -> [op]
-        with Not_found ->
-          [imm_op; byte (val_of src)]
-        end
-    | _ -> []
+  let bc_de_hl_sp = function
+    | Var "bc" -> v_ := 0x00; true
+    | Var "de" -> v_ := 0x10; true
+    | Var "hl" -> v_ := 0x20; true
+    | Var "sp" -> v_ := 0x30; true
+    | _ -> false
   in
-
-  match instr.operand with
-  | Expr ("nop", []) -> [0x00]
-  | Expr ("halt", []) -> [0x76]
-  | Expr ("di", []) -> [0xF3]
-  | Expr ("ei", []) -> [0xFB]
-  | Expr ("ret", []) -> [0xC9]
-  | Expr ("reti", []) -> [0xED; 0x4D]
-  | Expr ("retn", []) -> [0xED; 0x45]
-  | Expr ("exx", []) -> [0xD9]
-  | Expr ("scf", []) -> [0x37]
-  | Expr ("ccf", []) -> [0x3F]
-  | Expr ("rla", []) -> [0x17]
-  | Expr ("rlca", []) -> [0x07]
-  | Expr ("rra", []) -> [0x1F]
-  | Expr ("rrca", []) -> [0x0F]
-  | Expr ("cpl", []) -> [0x2F]
-  | Expr ("neg", []) -> [0xED; 0x44]
-  | Expr ("daa", []) -> [0x27]
-  
-  (* 8-bit Load *)
-  | Expr ("ld", [dst; src]) ->
-      begin try
-        (* ld r, r' / ld r, (hl) / ld r, (ix+d) *)
-        match r8_ext dst, r8_ext src with
-        | (pre1, r1, disp1), (pre2, r2, disp2) ->
-            if pre1 <> None && pre2 <> None then [] (* Invalid ld (ix+d), (ix+d) *)
-            else if pre1 <> None then
-              (* ld (ix+d), r *)
-              match disp1 with Some d -> [Option.get pre1; 0x70 + r2; byte d] | _ -> []
-            else if pre2 <> None then
-              (* ld r, (ix+d) *)
-              match disp2 with Some d -> [Option.get pre2; 0x40 + r1 * 8 + 6; byte d] | _ -> []
-            else
-              (* ld r, r' *)
-              [0x40 + r1 * 8 + r2]
-      with Not_found ->
-        (* ld r, n / ld (hl), n / ld (ix+d), n *)
-        try
-          let (pre, r, disp) = r8_ext dst in
-          let n = val_of src in
-          match pre, disp with
-          | Some p, Some d -> [p; 0x36; byte d; byte n]
-          | _, _ -> [0x06 + r * 8; byte n]
-        with Not_found ->
-          (* ld a, (nn) / ld (nn), a / ld hl, (nn) ... *)
-          match dst, src with
-          | Var "a", Paren (nn) -> [0x3A] @ word (val_of nn)
-          | Paren (nn), Var "a" -> [0x32] @ word (val_of nn)
-          | Var "bc", Paren (nn) -> [0xED; 0x4B] @ word (val_of nn)
-          | Var "de", Paren (nn) -> [0xED; 0x5B] @ word (val_of nn)
-          | Var "hl", Paren (nn) -> [0x2A] @ word (val_of nn)
-          | Var "sp", Paren (nn) -> [0xED; 0x7B] @ word (val_of nn)
-          | Paren (nn), Var "bc" -> [0xED; 0x43] @ word (val_of nn)
-          | Paren (nn), Var "de" -> [0xED; 0x53] @ word (val_of nn)
-          | Paren (nn), Var "hl" -> [0x22] @ word (val_of nn)
-          | Paren (nn), Var "sp" -> [0xED; 0x73] @ word (val_of nn)
-          (* ld r16, nn *)
-          | _, _ ->
-              match r16_sp dst with
-              | Some r -> [0x01 + r * 16] @ word (val_of src)
-              | None -> 
-                  match ixiy dst with
-                  | Some (pre, _) -> [pre; 0x21] @ word (val_of src)
-                  | None -> []
-      end
-
-  (* 16-bit Load/Stack *)
-  | Expr ("push", [src]) ->
-      begin match r16_af src with Some r -> [0xC5 + r * 16] | None -> 
-        match ixiy src with Some (pre, _) -> [pre; 0xE5] | None -> [] end
-  | Expr ("pop", [dst]) ->
-      begin match r16_af dst with Some r -> [0xC1 + r * 16] | None -> 
-        match ixiy dst with Some (pre, _) -> [pre; 0xE1] | None -> [] end
-  | Expr ("ex", [Var "de"; Var "hl"]) -> [0xEB]
-  | Expr ("ex", [Var "af"; Var "af'"]) -> [0x08]
-  | Expr ("ex", [Paren (Var "sp"); Var "hl"]) -> [0xE3]
-  | Expr ("ex", [Paren (Var "sp"); src]) ->
-      begin match ixiy src with Some (pre, _) -> [pre; 0xE3] | None -> [] end
-
-  (* ALU *)
-  | Expr ("add", [Var "hl"; src]) ->
-      begin match r16_sp src with Some r -> [0x09 + r * 16] | None -> [] end
-  | Expr ("add", [dst; src]) when (match ixiy dst with Some _ -> true | _ -> false) ->
-      begin match ixiy dst, r16_sp src with
-      | Some (pre, _), Some r -> [pre; 0x09 + r * 16]
-      | _ -> alu_op 0x80 0xC6 [dst; src]
-      end
-  | Expr ("adc", [Var "hl"; src]) ->
-      begin match r16_sp src with Some r -> [0xED; 0x4A + r * 16] | None -> [] end
-  | Expr ("sbc", [Var "hl"; src]) ->
-      begin match r16_sp src with Some r -> [0xED; 0x42 + r * 16] | None -> [] end
-  
-  | Expr ("add", args) -> alu_op 0x80 0xC6 args
-  | Expr ("adc", args) -> alu_op 0x88 0xCE args
-  | Expr ("sub", args) -> alu_op 0x90 0xD6 args
-  | Expr ("sbc", args) -> alu_op 0x98 0xDE args
-  | Expr ("and", args) -> alu_op 0xA0 0xE6 args
-  | Expr ("xor", args) -> alu_op 0xA8 0xEE args
-  | Expr ("or", args) -> alu_op 0xB0 0xF6 args
-  | Expr ("cp", args) -> alu_op 0xB8 0xFE args
-
-  (* Inc/Dec *)
-  | Expr ("inc", [dst]) ->
-      begin try
-        let (pre, r, disp) = r8_ext dst in
-        match pre, disp with
-        | Some p, Some d -> [p; 0x34; byte d]
-        | _, _ -> [0x04 + r * 8]
-      with Not_found ->
-        match r16_sp dst with Some r -> [0x03 + r * 16] | None ->
-        match ixiy dst with Some (pre, _) -> [pre; 0x23] | None -> []
-      end
-  | Expr ("dec", [dst]) ->
-      begin try
-        let (pre, r, disp) = r8_ext dst in
-        match pre, disp with
-        | Some p, Some d -> [p; 0x35; byte d]
-        | _, _ -> [0x05 + r * 8]
-      with Not_found ->
-        match r16_sp dst with Some r -> [0x0B + r * 16] | None ->
-        match ixiy dst with Some (pre, _) -> [pre; 0x2B] | None -> []
-      end
-
-  (* Control Flow *)
-  | Expr ("jp", [dst]) ->
-      begin match dst with
-      | Paren (Var "hl") -> [0xE9]
-      | _ -> 
-          match ixiy dst with
-          | Some (pre, _) -> [pre; 0xE9]
-          | None -> [0xC3] @ word (val_of dst)
-      end
-  | Expr ("jp", [cond; dst]) ->
-      begin match cc cond with
-      | Some c -> [0xC2 + c * 8] @ word (val_of dst)
-      | None -> []
-      end
-  | Expr ("jr", [dst]) -> [0x18; rel_disp (val_of dst)]
-  | Expr ("jr", [cond; dst]) ->
-      begin match cc cond with
-      | Some c -> [0x20 + c * 8; rel_disp (val_of dst)]
-      | None -> []
-      end
-  | Expr ("djnz", [dst]) -> [0x10; rel_disp (val_of dst)]
-  | Expr ("call", [dst]) -> [0xCD] @ word (val_of dst)
-  | Expr ("call", [cond; dst]) ->
-      begin match cc cond with
-      | Some c -> [0xC4 + c * 8] @ word (val_of dst)
-      | None -> []
-      end
-  | Expr ("rst", [dst]) ->
-      let n = val_of dst in
-      [0xC7 + (n land 0x38)]
-
-  (* Bit manipulation *)
-  | Expr ("bit", [bit; src]) ->
-      let b = val_of bit in
-      begin try
-        let (pre, r, disp) = r8_ext src in
-        match pre, disp with
-        | Some p, Some d -> [p; 0xCB; byte d; 0x40 + b * 8 + 6]
-        | _, _ -> [0xCB; 0x40 + b * 8 + r]
-      with Not_found -> []
-      end
-  | Expr ("set", [bit; src]) ->
-      let b = val_of bit in
-      begin try
-        let (pre, r, disp) = r8_ext src in
-        match pre, disp with
-        | Some p, Some d -> [p; 0xCB; byte d; 0xC0 + b * 8 + 6]
-        | _, _ -> [0xCB; 0xC0 + b * 8 + r]
-      with Not_found -> []
-      end
-  | Expr ("res", [bit; src]) ->
-      let b = val_of bit in
-      begin try
-        let (pre, r, disp) = r8_ext src in
-        match pre, disp with
-        | Some p, Some d -> [p; 0xCB; byte d; 0x80 + b * 8 + 6]
-        | _, _ -> [0xCB; 0x80 + b * 8 + r]
-      with Not_found -> []
-      end
-
+  let bc_de_hl_af = function
+    | Var "bc" -> v_ := 0x00; true
+    | Var "de" -> v_ := 0x10; true
+    | Var "hl" -> v_ := 0x20; true
+    | Var "af" -> v_ := 0x30; true
+    | _ -> false
+  in
+  let bc_de_ix_sp r = function
+    | Var "bc" -> v_ := 0x00; true
+    | Var "de" -> v_ := 0x10; true
+    | r1 when r1=r -> v_ := 0x20; true
+    | Var "sp" -> v_ := 0x30; true
+    | _ -> false
+  in
+  let flg = function
+    | Var "nz" -> v_ := 0x00; true
+    | Var "z"  -> v_ := 0x08; true
+    | Var "nc" -> v_ := 0x10; true
+    | Var "c"  -> v_ := 0x18; true
+    | Var "po" -> v_ := 0x20; true
+    | Var "pe" -> v_ := 0x28; true
+    | Var "p"  -> v_ := 0x30; true
+    | Var "m"  -> v_ := 0x38; true
+    | _ -> false
+  in
+  let int_list_of_string s =
+    List.init (String.length s) (fun i ->
+      Char.code s.[i]
+    )
+  in
+  let int = function
+    | Int a -> a
+    | String x ->
+      (match int_list_of_string x with
+      | [i] -> i
+      | _ -> assert false)
+    | _ -> assert false
+  in
+  let u8 i = (int i) land 255
+  in
+  let u16 i =
+    let i = int i in
+    [i mod 0x100;i / 256]
+  in
+  let short_jmp = function
+    | Int a ->
+      let v = (a - pc - 2) in
+      if v < -128 || 127 < v then failwith (show_instruction instr);
+      v land 255
+    | _ -> assert false
+  in
+  let n, args = match instr.operand with
+  | Expr (n,a) -> (n,a)
+  | _ -> failwith (show_instruction instr)
+  in
+  match n, List.map (eval_expr env) args with
+  | ("adc",[Var "a";r]) when abcdehlref r -> [0x88 + !v2_]
+  | ("adc",[Var "a";Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0x8e;u8 d]
+  | ("adc",[Var "a";i]) -> [0xce;u8 i]
+  | ("adc",[Var "hl";r]) when bc_de_hl_sp r -> [0xed;0x4a + !v_]
+  | ("add",[Var "a";r]) when abcdehlref r -> [0x80 + !v2_]
+  | ("add",[Var "a";Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0x86;u8 d]
+  | ("add",[Var "a";i]) -> [0xc6;u8 i]
+  | ("add",[Var "hl";r]) when bc_de_hl_sp r -> [0x09 + !v_]
+  | ("add",[r;r2]) when ixiy r && bc_de_ix_sp r r2 -> [!ixiy_;0x09 + !v_]
+  | ("and",[r]) when abcdehlref r -> [0xa0 + !v2_]
+  | ("and",[Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xa6;u8 d]
+  | ("and",[i]) -> [0xe6;u8 i]
+  | ("bit",[i;r]) when abcdehlref r ->
+    let i = int i in
+    if 0 <= i && i <= 7 then [0xcb;0x40 + i * 8+ !v2_] else assert false
+  | ("bit",[i;Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xcb;u8 d;0x46 + (int i) * 8]
+  | ("call",[f;i]) when flg f -> (0xc4 + !v_ :: u16 i)
+  | ("call",[i]) -> (0xcd :: u16 i)
+  | ("ccf",[]) -> [0x3f]
+  | ("cp",[r]) when abcdehlref r -> [0xb8 + !v2_]
+  | ("cp",[Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xbe;u8 d]
+  | ("cp",[i]) -> [0xfe;u8 i]
+  | ("cpd",[]) -> [0xed;0xa9]
+  | ("cpdr",[]) -> [0xed;0xb9]
+  | ("cpi",[]) -> [0xed;0xa1]
+  | ("cpir",[]) -> [0xed;0xb1]
+  | ("cpl",[]) -> [0x2f]
+  | ("daa",[]) -> [0x27]
+  | ("dec",[r]) when abcdehl r -> [0x05 + !v_ * 8]
+  | ("dec",[Paren(Var "hl")]) -> [0x35]
+  | ("dec",[Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0x35;u8 d]
+  | ("dec",[r]) when bc_de_hl_sp r -> [0x0b + !v_]
+  | ("dec",[r]) when ixiy r -> [!ixiy_;0x2b]
+  | ("di",[]) -> [0xf3]
+  | ("djnz",[e]) -> [0x10;short_jmp e] 
+  | ("ei",[]) -> [0xfb]
+  | ("ex",[Paren(Var "sp");Var "hl"]) -> [0xe3]
+  | ("ex",[Paren(Var "sp");r]) when ixiy r -> [!ixiy_;0xe3]
+  | ("ex",[Var "af";Var "af'"]) -> [0x08]
+  | ("ex",[Var "de";Var "hl"]) -> [0xeb]
+  | ("exx",[]) -> [0xd9]
+  | ("halt",[]) -> [0x76]
+  | ("im", [Int 0]) -> [0xED; 0x46]
+  | ("im", [Int 1]) -> [0xED; 0x56]
+  | ("im", [Int 2]) -> [0xED; 0x5E]
+  | ("inc",[r]) when abcdehl r -> [0x04 + !v_ * 8]
+  | ("inc",[Paren(Var "hl")]) -> [0x34]
+  | ("inc",[Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0x34;u8 d]
+  | ("inc",[r]) when bc_de_hl_sp r -> [0x03 + !v_]
+  | ("inc",[r]) when ixiy r -> [!ixiy_;0x23]
+  | ("in",[r;Paren(Var "c")]) when abcdehl r -> [0xed;0x40 + !v_ * 8]
+  | ("in",[Var "a";Paren(i)]) -> [0xdb;u8 i]
+  | ("ind",[]) -> [0xed;0xaa]
+  | ("indr",[]) -> [0xed;0xba]
+  | ("ini",[]) -> [0xed;0xa2]
+  | ("inir",[]) -> [0xed;0xb2]
+  | ("jp",[Paren(Var "hl")]) -> [0xe9]
+  | ("jp",[Paren(r)]) when ixiy r -> [!ixiy_;0xe9]
+  | ("jp",[i]) -> (0xc3::u16 i)
+  | ("jp",[f;i]) when flg f -> (0xc2 + !v_ :: u16 i)
+  | ("jr",[e]) -> [0x18;short_jmp e]
+  | ("jr",[Var "nz";e]) -> [0x20;short_jmp e]
+  | ("jr",[Var "z";e]) -> [0x28;short_jmp e]
+  | ("jr",[Var "nc";e]) -> [0x30;short_jmp e]
+  | ("jr",[Var "c";e]) -> [0x38;short_jmp e]
+  | ("ld", [r;r2]) when abcdehl r && abcdehlref r2 -> [0x40 + !v_ * 8 + !v2_]
+  | ("ld",[r;Paren(Add(r2,d))]) when abcdehl r && ixiy r2 -> [!ixiy_;0x46 + !v_ * 8;u8 d]
+  | ("ld",[Var "a";Paren(r)]) when bc_de r -> [0x0a + !v_]
+  | ("ld",[Var "a";Paren(i)]) -> (0x3a::u16 i)
+  | ("ld",[Var "a";Var "i"]) -> [0xed;0x57]
+  | ("ld",[Var "a";Var "r"]) -> [0xed;0x5f]
+  | ("ld",[Var "i";Var "a"]) -> [0xed;0x47]
+  | ("ld",[Var "r";Var "a"]) -> [0xed;0x4f]
+  | ("ld",[r;i]) when abcdehl r -> [0x06 + !v_ * 8;u8 i]
+  | ("ld",[Paren(r);Var "a"]) when bc_de r -> [0x02 + !v_]
+  | ("ld",[Paren(Var "hl");r]) when abcdehl r -> [0x70 + !v_]
+  | ("ld",[Paren(Var "hl");i]) -> [0x36;u8 i]
+  | ("ld",[Paren(Add(r,d));r2]) when ixiy r && abcdehl r2 -> [!ixiy_;0x70 + !v_;u8 d]
+  | ("ld",[Paren(Add(r,d));i]) when ixiy r -> [!ixiy_;0x36;u8 d;u8 i]
+  | ("ld",[Paren(i);Var "a"]) -> (0x32::u16 i)
+  | ("ld",[Var "sp";Var "hl"]) -> [0xf9]
+  | ("ld",[Var "sp";r]) when ixiy r -> [!ixiy_;0xf9]
+  | ("ld",[Var "hl";Paren(i)]) -> ([0x2a] @ u16 i)
+  | ("ld",[r;Paren(i)]) when bc_de_sp r -> ([0xed;0x4b + !v_] @ u16 i)
+  | ("ld",[r;Paren(i)]) when ixiy r -> ([!ixiy_;0x2a] @ u16 i)
+  | ("ld",[r;i]) when bc_de_hl_sp r -> ([0x01 + !v_] @ u16 i)
+  | ("ld",[r;i]) when ixiy r -> ([!ixiy_;0x21] @ u16 i)
+  | ("ld",[Paren(i);Var "hl"]) -> ([0x22] @ u16 i)
+  | ("ld",[Paren(i);r]) when bc_de_sp r -> ([0xed;0x43 + !v_] @ u16 i)
+  | ("ld",[Paren(i);r]) when ixiy r -> ([!ixiy_;0x22] @ u16 i)
+  | ("ldd",[]) -> [0xed;0xa8]
+  | ("lddr",[]) -> [0xed;0xb8]
+  | ("ldi",[]) -> [0xed;0xa0]
+  | ("ldir",[]) -> [0xed;0xb0]
+  | ("neg",[]) -> [0xed;0x44]
+  | ("nop",[]) -> [0x00]
+  | ("or",[r]) when abcdehlref r -> [0xb0 + !v2_]
+  | ("or",[Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xb6;u8 d]
+  | ("or",[i]) -> [0xf6;u8 i]
+  | ("out",[Paren(Var "c");r]) when abcdehl r -> [0xed;0x41 + !v_ * 8]
+  | ("out",[Paren(i);Var "a"]) -> [0xd3;u8 i]
+  | ("outd",[]) -> [0xed;0xab]
+  | ("otdr",[]) -> [0xed;0xbb]
+  | ("outi",[]) -> [0xed;0xa3]
+  | ("otir",[]) -> [0xed;0xb3]
+  | ("pop",[r]) when bc_de_hl_af r -> [0xc1 + !v_]
+  | ("pop",[r]) when ixiy r -> [!ixiy_;0xe1]
+  | ("push",[r]) when bc_de_hl_af r -> [0xc5 + !v_]
+  | ("push",[r]) when ixiy r -> [!ixiy_;0xe5]
+  | ("res",[i;r]) when abcdehlref r ->
+    let i = int i in
+    if 0 <= i && i <= 7 then [0xcb;0x80 + i * 8+ !v2_] else assert false
+  | ("res",[i;Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xcb;u8 d;0x86 + (int i) * 8]
+  | ("ret",[]) -> [0xc9]
+  | ("ret",[f]) when flg f -> [0xc0 + !v_]
+  | ("reti",[]) -> [0xed;0x4d]
+  | ("retn",[]) -> [0xed;0x45]
+  | ("rla",[]) -> [0x17]
+  | ("rlca",[]) -> [0x07]
+  | ("rra",[]) -> [0x1f]
+  | ("rrca",[]) -> [0x0f]
+  | ("rl",[r]) when abcdehlref r -> [0xcb;0x10 + !v2_]
+  | ("rl",[Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xcb;u8 d;0x16]
+  | ("rlc",[r]) when abcdehlref r -> [0xcb;0x00 + !v2_]
+  | ("rlc",[Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xcb;u8 d;0x06]
+  | ("rr",[r]) when abcdehlref r -> [0xcb;0x18 + !v2_]
+  | ("rr",[Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xcb;u8 d;0x1e]
+  | ("rrc",[r]) when abcdehlref r -> [0xcb;0x08 + !v2_]
+  | ("rrc",[Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xcb;u8 d;0x0e]
+  | ("rld",[]) -> [0xed;0x6f]
+  | ("rrd",[]) -> [0xed;0x67]
+  | ("rst",[i]) ->
+    let i = int i in
+    if i mod 8 = 0 && 0 <= i && i <= 0x38 then [0xc7 + i] else assert false
+  | ("sbc",[Var "a";r]) when abcdehlref r -> [0x98 + !v2_]
+  | ("sbc",[Var "a";Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0x9e;u8 d]
+  | ("sbc",[Var "a";i]) -> [0xde;u8 i]
+  | ("sbc",[Var "hl";r]) when bc_de_hl_sp r -> [0xed;0x42 + !v_]
+  | ("scf",[]) -> [0x37]
+  | ("set",[i;r]) when abcdehlref r ->
+    let i = int i in
+    if 0 <= i && i <= 7 then [0xcb;0xc0 + i * 8+ !v2_] else assert false
+  | ("set",[i;Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xcb;u8 d;0xc6 + (int i) * 8]
+  | ("sla",[r]) when abcdehlref r -> [0xcb;0x20 + !v2_]
+  | ("sla",[Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xcb;u8 d;0x26]
+  | ("sra",[r]) when abcdehlref r -> [0xcb;0x28 + !v2_]
+  | ("sra",[Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xcb;u8 d;0x2e]
+  | ("srl",[r]) when abcdehlref r -> [0xcb;0x38 + !v2_]
+  | ("srl",[Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xcb;u8 d;0x3e]
+  | ("sub",[r]) when abcdehlref r -> [0x90 + !v2_]
+  | ("sub",[Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0x96;u8 d]
+  | ("sub",[i]) -> [0xd6;u8 i]
+  | ("xor",[r]) when abcdehlref r -> [0xa8 + !v2_]
+  | ("xor",[Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xae;u8 d]
+  | ("xor",[i]) -> [0xee;u8 i]
   | _ -> []
 
 (* 命令をバイト列に変換する (Pass 2用) *)
@@ -282,8 +298,7 @@ let encode env pc instr =
       really_input ic buf 0 len;
       close_in ic;
       List.init len (fun i -> int_of_char (Bytes.get buf i))
-  | _ -> z80_encode env pc instr
-
+  | _ -> expr env pc instr
 (* 命令のサイズを返す (Pass 1用) *)
 let get_size env pc instr =
   List.length (encode env pc instr)
@@ -328,7 +343,7 @@ let pass2 prog env =
             let src_str = Ast.show_operand instr.operand in
             
             if bytes <> [] then
-              Printf.printf "%04X  %-8s  %s\n" addr bytes_str src_str;
+              Printf.printf "%04X  %-11s  %s\n" addr bytes_str src_str;
             
             let size = List.length bytes in
             loop (addr + size) rest

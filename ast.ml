@@ -58,6 +58,7 @@ let rec show_expr = function
   | Gt (a, b) -> Printf.sprintf "%s > %s" (show_expr a) (show_expr b)
   | LShift (a, b) -> Printf.sprintf "%s << %s" (show_expr a) (show_expr b)
   | RShift (a, b) -> Printf.sprintf "%s >> %s" (show_expr a) (show_expr b)
+  | Add (a, Int b) when b < 0 -> Printf.sprintf "%s - %d" (show_expr a) (-b)
   | Add (a, b) -> Printf.sprintf "%s + %s" (show_expr a) (show_expr b)
   | Sub (a, b) -> Printf.sprintf "%s - %s" (show_expr a) (show_expr b)
   | Mul (a, b) -> Printf.sprintf "%s * %s" (show_expr a) (show_expr b)
