@@ -68,4 +68,5 @@ expr:
   | "-" expr %prec UNARY    { USub($2) }
   | INT                     { Int($1) }
   | IDENT                   { Var($1) }
+  | STRING                  { String($1) }
   | "(" expr ")"            { Paren($2) }

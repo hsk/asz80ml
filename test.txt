@@ -28,4 +28,5 @@ mm1: macro
 endm
         mmm 3
         mm1
-
+        defb 1,2,3,"abc"
+        defw 0x1234

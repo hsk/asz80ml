@@ -1,6 +1,7 @@
 type expr =
   | Int of int
   | Var of string
+  | String of string
   | Ternary of expr * expr * expr  (* a ? b : c *)
   | Or of expr * expr  (* a | b *)
   | Xor of expr * expr  (* a ^ b *)
@@ -44,6 +45,7 @@ type program = instruction list
 let rec show_expr = function
   | Int n -> string_of_int n
   | Var s -> s
+  | String s -> Printf.sprintf "%S" s
   | Ternary (a, b, c) -> 
       Printf.sprintf "%s ? %s : %s" (show_expr a) (show_expr b) (show_expr c)
   | Or (a, b) -> Printf.sprintf "%s | %s" (show_expr a) (show_expr b)
