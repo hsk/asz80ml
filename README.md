@@ -11,3 +11,6 @@
 - [x] incbin
 - [x] z80 nimonic (all)
 - [x] output binary file
+- [x] single quote string
+- [ ] char literal
+

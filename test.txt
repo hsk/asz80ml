@@ -30,4 +30,4 @@ endm
         mm1
         defb 1,2,3,"abc"
         defw 0x1234
-        incbin "test3.txt"
+        incbin 'test3.txt'

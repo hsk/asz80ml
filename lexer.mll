@@ -48,5 +48,6 @@ rule token = parse
   | "<<"  { LSHIFT }
   | ">>"  { RSHIFT }
   | '"' [^ '"']* '"' as s { STRING (String.sub s 1 (String.length s - 2)) }
+  | '\'' [^ '\'']* '\'' as s { STRING (String.sub s 1 (String.length s - 2)) }
   | eof   { EOF }
   | _ as c { Printf.printf "Unexpected character: '%c'\n" c; token lexbuf }

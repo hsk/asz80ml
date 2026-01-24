@@ -5,8 +5,11 @@ all:
 	ocamllex lexer.mll
 	ocamlc ast.cmo parser.ml lexer.ml macro.ml assembler.ml main.ml -o test
 	rm *.cm* parser.ml lexer.ml
+
 	./test test.txt test.bin
-	z80asm test.txt -o test2.bin
 	z80dasm test.bin > testd.txt
-	z80dasm test2.bin > test2d.txt
+	z80asm test.txt -o test.bin
+	z80dasm test.bin > test2d.txt
 	diff testd.txt test2d.txt
+clean:
+	rm -rf *.bin test2d.txt testd.txt test
