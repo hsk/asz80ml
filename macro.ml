@@ -13,6 +13,7 @@ let rec eval_expr env = function
       | None -> Var s
       | Some e -> e
       end
+  | String s when String.length s = 1 -> Int (Char.code s.[0])
   | String s -> String s
   | Or (a, b) -> eval_bin env (fun x y -> Or (x, y)) a b (fun x y -> x lor y)
   | Xor (a, b) -> eval_bin env (fun x y -> Xor (x, y)) a b (fun x y -> x lxor y)

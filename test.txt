@@ -1,6 +1,6 @@
-        org 0x10
+        org '\12'
 fuga:   equ 10
-abc: equ fuga * 2
+abc: equ fuga * "\2"
 
 include "test2.txt"
 
@@ -28,6 +28,6 @@ mm1: macro
 endm
         mmm 3
         mm1
-        defb 1,2,3,"abc\r\n\t\a\0\8\10\100\0100"
+        defb 1,2,3,"abc\r\n\t\a\0\8\10\100\0100",'\0'
         defw 0x1234
         incbin 'test3.txt'
