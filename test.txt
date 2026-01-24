@@ -28,6 +28,6 @@ mm1: macro
 endm
         mmm 3
         mm1
-        defb 1,2,3,"abc"
+        defb 1,2,3,"abc\r\n\t\a\0\8\10\100\0100"
         defw 0x1234
         incbin 'test3.txt'
