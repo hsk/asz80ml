@@ -9,4 +9,4 @@
 - [x] include
 - [x] defb defw db dw defm dm
 - [x] incbin
-- [ ] z80 nimonic (all)
+- [x] z80 nimonic (all)
