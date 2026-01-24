@@ -44,3 +44,17 @@
     res '\0',a
     res '\1',a
     res '\2',(ix+1)
+    rst '\0'
+    set '\0',a
+    set '\1',a
+    set '\2',(ix+1)
+    sub '1'
+    xor '1'
+    db '\r\n\t\a'
+    dw 1
+    defm 'abc'
+    defs 2
+    defs 2,1
+    ds 2
+    ds 2,'a'
+    incbin 'test3.txt'
