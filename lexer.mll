@@ -22,7 +22,6 @@ rule token = parse
       | "elif" -> ELIF
       | "else" -> ELSE
       | "endif" -> ENDIF
-      | "include" -> INCLUDE
       | _ -> IDENT x
     }
   | '('  { LPAREN }

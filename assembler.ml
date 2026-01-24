@@ -38,6 +38,17 @@ let encode env instr =
       List.init (eval_expr_int env src) (fun _ -> 0)
   | Expr ("defs", [src;v]) | Expr ("ds", [src;v]) ->
       List.init (eval_expr_int env src) (fun _ -> (eval_expr_int env v))
+  | Expr ("incbin", [src]) ->
+      let filename = match eval_expr env src with
+        | String s -> s
+        | _ -> failwith "incbin: filename must be a string"
+      in
+      let ic = open_in_bin filename in
+      let len = in_channel_length ic in
+      let buf = Bytes.create len in
+      really_input ic buf 0 len;
+      close_in ic;
+      List.init len (fun i -> int_of_char (Bytes.get buf i))
   | _ -> z80_encode env instr
 
 (* 命令のサイズを返す (Pass 1用) *)

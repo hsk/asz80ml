@@ -33,7 +33,6 @@ type operand =
   | Label of string
   | MacroDef of string list * instruction list
   | If of expr * instruction list * instruction list
-  | Include of string
 
 and instruction = {
   location: location;
@@ -79,7 +78,6 @@ let show_operand = function
   | MacroDef (params, _body) ->
       Printf.sprintf "macro %s" (String.concat ", " params)
   | If (cond, _, _) -> Printf.sprintf "if %s" (show_expr cond)
-  | Include f -> Printf.sprintf "include \"%s\"" f
 
 let show_instruction instr =
   let op_str = show_operand instr.operand in

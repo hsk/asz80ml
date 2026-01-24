@@ -63,7 +63,6 @@ let eval_operand env = function
   | Label l -> Label l
   | MacroDef (p, b) -> MacroDef (p, b)
   | If (c, t, e) -> If (eval_expr env c, t, e)
-  | Include f -> Include f
 
 let eval_instruction env instr =
   { instr with operand = eval_operand env instr.operand }
@@ -106,14 +105,17 @@ let rec subst_operand subst_env = function
       If (subst_expr subst_env cond,
           List.map (subst_instruction subst_env) then_block,
           List.map (subst_instruction subst_env) else_block)
-  | Include f -> Include f
 and subst_instruction subst_env instr =
   { instr with operand = subst_operand subst_env instr.operand }
 
 let rec eval_program_rec (loader: string -> program) (env: env) (macros: (string * macro) list) (prog: program) : program =
   match prog with
   | [] -> []
-  | {operand=Include filename} :: rest ->
+  | {operand=Expr("include", [src])} :: rest ->
+      let filename = match eval_expr env src with
+                     | String x -> x
+                     | _ -> failwith "error"
+      in
       let included_prog = loader filename in
       let evaluated_included = eval_program_rec loader env macros included_prog in
       evaluated_included @ (eval_program_rec loader env macros rest)

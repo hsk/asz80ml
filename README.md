@@ -8,5 +8,5 @@
 - [x] org, label address
 - [x] include
 - [x] defb defw db dw defm dm
-- [ ] incbin
+- [x] incbin
 - [ ] z80 nimonic (all)
