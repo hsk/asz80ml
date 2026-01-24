@@ -83,6 +83,7 @@ let show_operand = function
 let show_instruction instr =
   let op_str = show_operand instr.operand in
   Printf.sprintf "[%s:%d] %s" instr.location.file instr.location.line op_str
-
+(*
 let show_program prog =
   String.concat "\n" (List.map show_instruction prog)
+*)

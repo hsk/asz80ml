@@ -35,13 +35,13 @@ let () =
   try
     let program = parse_file filename in
     
-    Printf.printf "Parse successful!\n";
-    Printf.printf "Original program:\n%s\n\n" (Ast.show_program program);
+    (* Printf.printf "Parse successful!\n";
+    Printf.printf "Original program:\n%s\n\n" (Ast.show_program program);*)
     
     let evaluated = Macro.eval_program parse_file [] program in
-    Printf.printf "Evaluated program:\n%s\n\n" (Ast.show_program evaluated);
+    (*Printf.printf "Evaluated program:\n%s\n\n" (Ast.show_program evaluated);
 
-    Printf.printf "Assembly Output:\n";
+    Printf.printf "Assembly Output:\n";*)
     Assembler.assemble evaluated out_filename
   with
   | Sys_error msg | Failure msg ->

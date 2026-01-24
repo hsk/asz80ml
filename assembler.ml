@@ -321,6 +321,7 @@ let pass1 prog =
   loop 0 [] prog
 
 (* Pass 2: コード生成と表示 *)
+(*
 let pass2 prog env =
   let rec loop addr = function
     | [] -> ()
@@ -349,6 +350,7 @@ let pass2 prog env =
             loop (addr + size) rest
   in
   loop 0 prog
+*)
 
 (* Pass 3: Binary Output *)
 let pass3 prog env filename =
@@ -377,7 +379,7 @@ let pass3 prog env filename =
 
 let assemble prog out_file =
   let env = pass1 prog in
-  pass2 prog env;
+  (* pass2 prog env; *)
   match out_file with
   | Some f -> pass3 prog env f
   | None -> ()

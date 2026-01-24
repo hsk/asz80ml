@@ -4,7 +4,7 @@ abc: equ fuga * "\2"
 
 include "test2.txt"
 
-hoge:   ld a,(ix+(fuga*3))  ; ld a, (ix+30) -> DD 7E 1E
+hoge:   ld a,(ix+fuga*3)  ; ld a, (ix+30) -> DD 7E 1E
         nop
         ret
         ld a, 0x55
