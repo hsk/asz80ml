@@ -25,24 +25,25 @@
 %start <Ast.program> main
 %%
 main:
-  | program_item* EOF       { $1 }
+  | program_item* EOF       { List.flatten $1 }
 program_item:
-  | IDENT ":" EOL           { l(Label $1) }
-  | IDENT ":"               { l(Label $1) }
+  | EOL                     { [] }
+  | IDENT ":" EOL           { [l(Label $1)] }
+  | IDENT ":"               { [l(Label $1)] }
   | "macro" separated_list(",", IDENT) EOL program_item* "endm" EOL
-                            { l2(MacroDef($2, $4),$3) }
-  | "if" expr EOL if_parts  { let (t, e) = $4 in l2(If($2, t, e),$3) }
+                            { [l2(MacroDef($2, List.flatten $4),$3)] }
+  | "if" expr EOL if_parts  { let (t, e) = $4 in [l2(If($2, t, e),$3)] }
   | IDENT separated_nonempty_list(",", expr) EOL
-                            { l(Expr($1, $2)) }
-  | IDENT EOL               { l(Expr($1, [])) }
+                            { [l(Expr($1, $2))] }
+  | IDENT EOL               { [l(Expr($1, []))] }
 if_parts:
   | "endif" EOL             { ([], []) }
   | "else" EOL else_part    { ([], $3) }
   | "elif" expr EOL if_parts{ let (t, e) = $4 in ([], [l2(If($2, t, e),$3)]) }
-  | program_item if_parts   { let (t, e) = $2 in ($1 :: t, e) }
+  | program_item if_parts   { let (t, e) = $2 in ($1 @ t, e) }
 else_part:
   | "endif" EOL { [] }
-  | program_item else_part { $1 :: $2 }
+  | program_item else_part { $1 @ $2 }
 expr:
   | expr "?" expr ":" expr  { Ternary($1, $3, $5) }
   | expr "|" expr           { Or($1, $3) }

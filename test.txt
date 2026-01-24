@@ -1,9 +1,19 @@
+        org 0x100
 fuga:   equ 10
-hoge:   ld a,(ix+(fuga*3))
-        ld (iy+fuga*2),a
-        ld (10),a
+abc: equ hoge * 2
+
+hoge:   ld a,(ix+(fuga*3))  // ld a, (ix+30) -> DD 7E 1E
         nop
         ret
+        ld a, 0x55
+        ld a, hoge          // ラベルのアドレス (0x100) の下位バイト
+        ld a, abc
+if hoge > 0
+        ld a, 1
+else
+        ld a, 0
+endif
+
 mmm: macro v
     if v > 0
         ld a,v
@@ -16,3 +26,4 @@ mm1: macro
 endm
         mmm 3
         mm1
+

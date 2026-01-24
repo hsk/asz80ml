@@ -36,7 +36,10 @@ let () =
     
     (* Evaluate with empty environment *)
     let evaluated = Macro.eval_program [] program in
-    Printf.printf "Evaluated program:\n%s\n" (Ast.show_program evaluated)
+    Printf.printf "Evaluated program:\n%s\n\n" (Ast.show_program evaluated);
+
+    Printf.printf "Assembly Output:\n";
+    Assembler.assemble evaluated
   with
   | Sys_error msg ->
       Printf.eprintf "Error: %s\n" msg;
