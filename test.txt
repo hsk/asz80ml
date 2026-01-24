@@ -161,7 +161,7 @@ endm
         dec ix
         dec iy
         di
-        djnz 300
+        djnz 400
         ei
 
         ex (sp),hl

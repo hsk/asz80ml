@@ -1,1 +1,46 @@
     ld a,123
+    defb 0,1,2,'abc'
+    adc a,'1'
+    add a,'1'
+    and '1'
+    bit '\0',a
+    bit '\1',a
+    cp '1'
+    in a,('1')
+    ld a,('1')
+    ld a,'1'
+    ld b,'1'
+    ld c,'1'
+    ld d,'1'
+    ld e,'1'
+    ld h,'1'
+    ld l,'1'
+    ld (hl),'1'
+    ld (ix+1),'1'
+    ld (iy+1),'1'
+    ld ('1'),a
+    ld hl,('1')
+    ld ('1'), hl
+    ld ('1'), bc
+    ld ('1'), de
+    ld ('1'), sp
+    ld ('1'), ix
+    ld ('1'), iy
+    ld bc,('1')
+    ld de,('1')
+    ld sp,('1')
+    ld ix,('1')
+    ld iy,('1')
+
+    ld bc,'1'
+    ld de,'1'
+    ld sp,'1'
+    ld ix,'1'
+    ld iy,'1'
+
+    or '1'
+    out ('1'),a
+    sbc a,'1'
+    res '\0',a
+    res '\1',a
+    res '\2',(ix+1)

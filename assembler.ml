@@ -101,7 +101,7 @@ let expr env pc instr =
   let short_jmp = function
     | Int a ->
       let v = (a - pc - 2) in
-      if v < -128 || 127 < v then failwith (show_instruction instr);
+      if v < -128 || 127 < v then failwith ((show_instruction instr)^" jump address range -128 127");
       v land 255
     | _ -> assert false
   in
@@ -124,7 +124,7 @@ let expr env pc instr =
   | ("and",[i]) -> [0xe6;u8 i]
   | ("bit",[i;r]) when abcdehlref r ->
     let i = int i in
-    if 0 <= i && i <= 7 then [0xcb;0x40 + i * 8+ !v2_] else assert false
+    if 0 <= i && i <= 7 then [0xcb;0x40 + i * 8+ !v2_] else failwith ((show_instruction instr)^" range error")
   | ("bit",[i;Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xcb;u8 d;0x46 + (int i) * 8]
   | ("call",[f;i]) when flg f -> (0xc4 + !v_ :: u16 i)
   | ("call",[i]) -> (0xcd :: u16 i)
@@ -221,7 +221,7 @@ let expr env pc instr =
   | ("push",[r]) when ixiy r -> [!ixiy_;0xe5]
   | ("res",[i;r]) when abcdehlref r ->
     let i = int i in
-    if 0 <= i && i <= 7 then [0xcb;0x80 + i * 8+ !v2_] else assert false
+    if 0 <= i && i <= 7 then [0xcb;0x80 + i * 8+ !v2_] else failwith ((show_instruction instr)^" 0 <= i <= 7");
   | ("res",[i;Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xcb;u8 d;0x86 + (int i) * 8]
   | ("ret",[]) -> [0xc9]
   | ("ret",[f]) when flg f -> [0xc0 + !v_]
@@ -243,7 +243,7 @@ let expr env pc instr =
   | ("rrd",[]) -> [0xed;0x67]
   | ("rst",[i]) ->
     let i = int i in
-    if i mod 8 = 0 && 0 <= i && i <= 0x38 then [0xc7 + i] else assert false
+    if i mod 8 = 0 && 0 <= i && i <= 0x38 then [0xc7 + i] else failwith ((show_instruction instr)^" range")
   | ("sbc",[Var "a";r]) when abcdehlref r -> [0x98 + !v2_]
   | ("sbc",[Var "a";Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0x9e;u8 d]
   | ("sbc",[Var "a";i]) -> [0xde;u8 i]
@@ -251,7 +251,7 @@ let expr env pc instr =
   | ("scf",[]) -> [0x37]
   | ("set",[i;r]) when abcdehlref r ->
     let i = int i in
-    if 0 <= i && i <= 7 then [0xcb;0xc0 + i * 8+ !v2_] else assert false
+    if 0 <= i && i <= 7 then [0xcb;0xc0 + i * 8+ !v2_] else  failwith ((show_instruction instr)^" 0 <= i <= 7");
   | ("set",[i;Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xcb;u8 d;0xc6 + (int i) * 8]
   | ("sla",[r]) when abcdehlref r -> [0xcb;0x20 + !v2_]
   | ("sla",[Paren(Add(r,d))]) when ixiy r -> [!ixiy_;0xcb;u8 d;0x26]

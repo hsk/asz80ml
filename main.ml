@@ -44,8 +44,7 @@ let () =
     Printf.printf "Assembly Output:\n";
     Assembler.assemble evaluated out_filename
   with
-  | Sys_error msg ->
+  | Sys_error msg | Failure msg ->
+      flush_all ();
       Printf.eprintf "Error: %s\n" msg;
-      exit 1
-  | Failure msg ->
       exit 1
