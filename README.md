@@ -4,6 +4,8 @@
 - [x] 変数指定 label: equ 10
 - [x] label: macro a,b endm
 - [x] if elif else endif
+- [ ] include
 - [ ] z80 nimonic
 - [ ] org, label address
+- [ ] incbin
 - [ ] defb defw db dw defm dm
