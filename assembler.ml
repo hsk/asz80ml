@@ -28,6 +28,8 @@ let z80_encode env pc instr =
     match expr with
     | Paren (Add (Var "ix", d)) | Paren (Add (d, Var "ix")) -> Some (0xDD, val_of d)
     | Paren (Add (Var "iy", d)) | Paren (Add (d, Var "iy")) -> Some (0xFD, val_of d)
+    | Paren (Sub (Var "ix", d)) -> Some (0xDD, -val_of d)
+    | Paren (Sub (Var "iy", d)) -> Some (0xFD, -val_of d)
     | Paren (Var "ix") -> Some (0xDD, 0)
     | Paren (Var "iy") -> Some (0xFD, 0)
     | _ -> None

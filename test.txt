@@ -31,3 +31,22 @@ endm
         defb 1,2,3,"abc\r\n\t\a\0\8\10\100\0100",'\0'
         defw 0x1234
         incbin 'test3.txt'
+
+        adc a,a
+        adc a,b
+        adc a,c
+        adc a,d
+        adc a,e
+        adc a,h
+        adc a,l
+        adc a,(hl)
+        adc a,(ix+1)
+        adc a,(ix-1)
+        adc a,(iy+1)
+        adc a,(iy-1)
+        adc a,10
+        adc hl,bc
+        adc hl,de
+        adc hl,hl
+        adc hl,sp
+

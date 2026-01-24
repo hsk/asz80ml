@@ -12,6 +12,6 @@
 - [x] z80 nimonic (all)
 - [x] output binary file
 - [x] single quote string
-- [x] '\\"' '\\' '\\'' '\\0' '\\256' '\\n', '\\r', '\\a', '\\t'　10, 13, 7, 9
+- [x] '\\"' '\\' '\\'' '\\0' '\\100' '\\n', '\\r', '\\a', '\\t'　10, 13, 7, 9
 - [x] char literal
 
