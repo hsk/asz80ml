@@ -22,6 +22,7 @@ rule token = parse
       | "elif" -> ELIF
       | "else" -> ELSE
       | "endif" -> ENDIF
+      | "include" -> INCLUDE
       | _ -> IDENT x
     }
   | '('  { LPAREN }
@@ -47,5 +48,6 @@ rule token = parse
   | ">"   { GT }
   | "<<"  { LSHIFT }
   | ">>"  { RSHIFT }
+  | '"' [^ '"']* '"' as s { STRING (String.sub s 1 (String.length s - 2)) }
   | eof   { EOF }
   | _ as c { Printf.printf "Unexpected character: '%c'\n" c; token lexbuf }

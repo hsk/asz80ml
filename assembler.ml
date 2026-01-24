@@ -9,10 +9,6 @@ let encode env instr =
   | Expr ("ld", [Var "a"; Int n]) -> [0x3E; n land 0xFF]
   | _ -> []
 
-(* 命令のサイズを返す (Pass 1用) *)
-let get_size env instr =
-  List.length (encode env instr)
-
 (* Pass 1: シンボルテーブルの作成 *)
 let pass1 prog =
   let rec loop addr env = function
@@ -24,7 +20,7 @@ let pass1 prog =
         | Expr ("org", [Int new_addr]) ->
             loop new_addr env rest
         | _ ->
-            let size = get_size env instr in
+            let size = List.length (encode env instr) in
             loop (addr + size) env rest
   in
   loop 0 [] prog

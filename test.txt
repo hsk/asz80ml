@@ -2,6 +2,8 @@
 fuga:   equ 10
 abc: equ hoge * 2
 
+include "test2.txt"
+
 hoge:   ld a,(ix+(fuga*3))  // ld a, (ix+30) -> DD 7E 1E
         nop
         ret

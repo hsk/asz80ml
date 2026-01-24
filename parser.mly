@@ -7,9 +7,9 @@
   let l2 (operand,line) = { location = {file = !file; line}; operand }
 %}
 %token <int> INT EOL
-%token <string> IDENT
+%token <string> IDENT STRING
 %token LPAREN "(" RPAREN ")" QUESTION "?" COLON ":" OR "|" CARET "^" AND "&"
-%token MACRO "macro" ENDM "endm" IF "if" ELIF "elif" ELSE "else" ENDIF "endif"
+%token MACRO "macro" ENDM "endm" IF "if" ELIF "elif" ELSE "else" ENDIF "endif" INCLUDE "include"
 %token EQEQ "==" EQ "=" NE "!=" LE "<=" GE ">=" LT "<" GT ">"
 %token LSHIFT "<<" RSHIFT ">>" ADD "+" SUB "-" MUL "*" DIV "/" MOD "%"
 %token TILDE "~" COMMA "," EOF
@@ -33,6 +33,7 @@ program_item:
   | "macro" separated_list(",", IDENT) EOL program_item* "endm" EOL
                             { [l2(MacroDef($2, List.flatten $4),$3)] }
   | "if" expr EOL if_parts  { let (t, e) = $4 in [l2(If($2, t, e),$3)] }
+  | "include" STRING EOL    { [l(Include $2)] }
   | IDENT separated_nonempty_list(",", expr) EOL
                             { [l(Expr($1, $2))] }
   | IDENT EOL               { [l(Expr($1, []))] }

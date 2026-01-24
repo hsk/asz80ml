@@ -62,6 +62,7 @@ let eval_operand env = function
   | Label l -> Label l
   | MacroDef (p, b) -> MacroDef (p, b)
   | If (c, t, e) -> If (eval_expr env c, t, e)
+  | Include f -> Include f
 
 let eval_instruction env instr =
   { instr with operand = eval_operand env instr.operand }
@@ -104,24 +105,29 @@ let rec subst_operand subst_env = function
       If (subst_expr subst_env cond,
           List.map (subst_instruction subst_env) then_block,
           List.map (subst_instruction subst_env) else_block)
+  | Include f -> Include f
 and subst_instruction subst_env instr =
   { instr with operand = subst_operand subst_env instr.operand }
 
-let rec eval_program_rec (env: env) (macros: (string * macro) list) (prog: program) : program =
+let rec eval_program_rec (loader: string -> program) (env: env) (macros: (string * macro) list) (prog: program) : program =
   match prog with
   | [] -> []
+  | {operand=Include filename} :: rest ->
+      let included_prog = loader filename in
+      let evaluated_included = eval_program_rec loader env macros included_prog in
+      evaluated_included @ (eval_program_rec loader env macros rest)
   | {operand=Label name}::{operand = MacroDef (params, body)} :: rest ->
       let new_macros = (name, {params; body}) :: macros in
-      eval_program_rec env new_macros rest
+      eval_program_rec loader env new_macros rest
   | {operand=Label n}::{operand=Expr("equ", [e])}::rest ->
       let new_env = (n, eval_expr env e) :: env in
-      eval_program_rec new_env macros rest
+      eval_program_rec loader new_env macros rest
   | {operand=If (cond, then_block, else_block)} :: rest ->
       let branch = match eval_expr env cond with
         | Int 0 -> else_block
         | _ -> then_block
       in
-      eval_program_rec env macros (branch @ rest)
+      eval_program_rec loader env macros (branch @ rest)
   | ({location; operand = Expr(name, args)} as instr) :: rest ->
       (match List.assoc_opt name macros with
       | Some macro ->
@@ -130,12 +136,12 @@ let rec eval_program_rec (env: env) (macros: (string * macro) list) (prog: progr
               name location.file location.line (List.length macro.params) (List.length args));
           let subst_env = List.combine macro.params args in
           let expanded_body = List.map (subst_instruction subst_env) macro.body in
-          let processed_body = eval_program_rec env macros expanded_body in
-          processed_body @ (eval_program_rec env macros rest)
+          let processed_body = eval_program_rec loader env macros expanded_body in
+          processed_body @ (eval_program_rec loader env macros rest)
       | None ->
-          eval_instruction env instr :: eval_program_rec env macros rest)
+          eval_instruction env instr :: eval_program_rec loader env macros rest)
   | instr :: rest ->
-      eval_instruction env instr :: eval_program_rec env macros rest
+      eval_instruction env instr :: eval_program_rec loader env macros rest
 
-let eval_program env prog =
-  eval_program_rec env [] prog
+let eval_program loader env prog =
+  eval_program_rec loader env [] prog

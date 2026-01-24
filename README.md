@@ -6,7 +6,7 @@
 - [x] if elif else endif
 - [x] z80 nimonic (minimum)
 - [x] org, label address
-- [ ] include
+- [x] include
 - [ ] incbin
 - [ ] defb defw db dw defm dm
 - [ ] z80 nimonic (all)
